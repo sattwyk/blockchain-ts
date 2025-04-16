@@ -3,13 +3,14 @@
  * Each block contains a set of transactions and links to the previous block
  */
 export class Block {
+    private _transactions: any[];    // List of transactions in this block
+    private _nonce: number;          // Number used in mining to find valid hash
+
     // Block metadata
-    public index: number;          // Position in the chain
-    public timestamp: number;      // When the block was created
-    public transactions: any[];    // List of transactions in this block
-    public previousHash: string;   // Hash of the previous block (creates the chain)
-    public hash: string;           // Current block's hash
-    public nonce: number;          // Number used in mining to find valid hash
+    public index: number;            // Position in the chain
+    public timestamp: number;        // When the block was created
+    public previousHash: string;     // Hash of the previous block (creates the chain)
+    public hash: string;             // Current block's hash
 
     /**
      * Creates a new block
@@ -28,10 +29,38 @@ export class Block {
     ) {
         this.index = index;
         this.timestamp = Date.now();
-        this.transactions = transactions;
+        this._transactions = [...transactions];
         this.previousHash = previousHash;
-        this.nonce = nonce;
-        this.hash = hash || this.calculateHash(); // Use provided hash or calculate new one
+        this._nonce = nonce;
+        this.hash = hash || this.calculateHash();
+    }
+
+    /**
+     * Getter for transactions
+     */
+    get transactions(): any[] {
+        return [...this._transactions];
+    }
+
+    /**
+     * Setter for transactions
+     */
+    set transactions(value: any[]) {
+        this._transactions = [...value];
+    }
+
+    /**
+     * Getter for nonce
+     */
+    get nonce(): number {
+        return this._nonce;
+    }
+
+    /**
+     * Setter for nonce
+     */
+    set nonce(value: number) {
+        this._nonce = value;
     }
 
     /**
@@ -42,8 +71,8 @@ export class Block {
         const data = this.index +
             this.previousHash +
             this.timestamp +
-            JSON.stringify(this.transactions) +
-            this.nonce;
+            JSON.stringify(this._transactions) +
+            this._nonce;
 
         const hash = new Bun.CryptoHasher("sha256");
         hash.update(data);
@@ -55,6 +84,20 @@ export class Block {
      * This ensures the block hasn't been tampered with
      */
     public isValid(): boolean {
-        return this.hash === this.calculateHash();
+        // Check if the stored hash matches the calculated hash
+        if (this.hash !== this.calculateHash()) {
+            return false;
+        }
+
+        // Validate all transactions in the block if they have isValid method
+        for (const transaction of this._transactions) {
+            if (transaction && typeof transaction.isValid === 'function') {
+                if (!transaction.isValid()) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 } 
